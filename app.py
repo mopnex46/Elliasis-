@@ -4,8 +4,13 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+print("APP.PY LOADED", flush=True)
+
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+print("TELEGRAM TOKEN EXISTS:", bool(TELEGRAM_BOT_TOKEN), flush=True)
+print("GEMINI KEY EXISTS:", bool(GEMINI_API_KEY), flush=True)
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
@@ -20,8 +25,8 @@ def send_telegram_message(chat_id, text):
         timeout=30
     )
 
-    print("TELEGRAM STATUS:", response.status_code)
-    print("TELEGRAM RESPONSE:", response.text)
+    print("TELEGRAM STATUS:", response.status_code, flush=True)
+    print("TELEGRAM RESPONSE:", response.text, flush=True)
 
     return response
 
@@ -47,8 +52,8 @@ def ask_gemini(text):
         timeout=60
     )
 
-    print("GEMINI STATUS:", response.status_code)
-    print("GEMINI RESPONSE:", response.text)
+    print("GEMINI STATUS:", response.status_code, flush=True)
+    print("GEMINI RESPONSE:", response.text, flush=True)
 
     response.raise_for_status()
     data = response.json()
@@ -65,7 +70,7 @@ def home():
 def telegram_webhook():
     update = request.get_json(silent=True) or {}
 
-    print("TELEGRAM UPDATE:", update)
+    print("TELEGRAM UPDATE:", update, flush=True)
 
     message = update.get("message", {})
     chat_id = message.get("chat", {}).get("id")
@@ -87,7 +92,7 @@ def telegram_webhook():
             send_telegram_message(chat_id, answer)
 
         except Exception as error:
-            print("ERROR:", repr(error))
+            print("ERROR:", repr(error), flush=True)
 
             send_telegram_message(
                 chat_id,
@@ -100,5 +105,3 @@ def telegram_webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
-
-
