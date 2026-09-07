@@ -11,7 +11,7 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
 
 
 def send_telegram_message(chat_id, text):
-    requests.post(
+    response = requests.post(
         f"{TELEGRAM_API}/sendMessage",
         json={
             "chat_id": chat_id,
@@ -19,6 +19,11 @@ def send_telegram_message(chat_id, text):
         },
         timeout=30
     )
+
+    print("TELEGRAM STATUS:", response.status_code)
+    print("TELEGRAM RESPONSE:", response.text)
+
+    return response
 
 
 def ask_gemini(text):
@@ -42,6 +47,9 @@ def ask_gemini(text):
         timeout=60
     )
 
+    print("GEMINI STATUS:", response.status_code)
+    print("GEMINI RESPONSE:", response.text)
+
     response.raise_for_status()
     data = response.json()
 
@@ -57,34 +65,40 @@ def home():
 def telegram_webhook():
     update = request.get_json(silent=True) or {}
 
+    print("TELEGRAM UPDATE:", update)
+
     message = update.get("message", {})
     chat_id = message.get("chat", {}).get("id")
     text = message.get("text")
 
     if not chat_id:
-        return "OK"
+        return "OK", 200
 
     if text == "/start":
         send_telegram_message(
             chat_id,
             "Привет! Я Элли 👋 Напиши мне что-нибудь."
         )
-        return "OK"
+        return "OK", 200
 
     if text:
         try:
             answer = ask_gemini(text)
             send_telegram_message(chat_id, answer)
+
         except Exception as error:
-            print("ERROR:", error)
+            print("ERROR:", repr(error))
+
             send_telegram_message(
                 chat_id,
                 "Не получилось получить ответ. Попробуй ещё раз."
             )
 
-    return "OK"
+    return "OK", 200
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
+
