@@ -1,11 +1,89 @@
-from flask import Flask
 import os
+import requests
+from flask import Flask, request
 
 app = Flask(__name__)
 
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
+
+
+def send_telegram_message(chat_id, text):
+    requests.post(
+        f"{TELEGRAM_API}/sendMessage",
+        json={
+            "chat_id": chat_id,
+            "text": text
+        },
+        timeout=30
+    )
+
+
+def ask_gemini(text):
+    url = (
+        "https://generativelanguage.googleapis.com/"
+        "v1beta/models/gemini-2.5-flash:generateContent"
+        f"?key={GEMINI_API_KEY}"
+    )
+
+    response = requests.post(
+        url,
+        json={
+            "contents": [
+                {
+                    "parts": [
+                        {"text": text}
+                    ]
+                }
+            ]
+        },
+        timeout=60
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
 @app.get("/")
 def home():
-    return "Bot is running!"
+    return "Ellie is running!"
+
+
+@app.post("/telegram")
+def telegram_webhook():
+    update = request.get_json(silent=True) or {}
+
+    message = update.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
+    text = message.get("text")
+
+    if not chat_id:
+        return "OK"
+
+    if text == "/start":
+        send_telegram_message(
+            chat_id,
+            "Привет! Я Элли 👋 Напиши мне что-нибудь."
+        )
+        return "OK"
+
+    if text:
+        try:
+            answer = ask_gemini(text)
+            send_telegram_message(chat_id, answer)
+        except Exception as error:
+            print("ERROR:", error)
+            send_telegram_message(
+                chat_id,
+                "Не получилось получить ответ. Попробуй ещё раз."
+            )
+
+    return "OK"
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
